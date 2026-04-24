@@ -14,9 +14,9 @@ DIFFICULTY_MAP = {1: "easy", 2: "medium", 3: "hard"}
 # Frontend row = r + 4,  col = q - Q_MIN[r]
 # Q_MIN maps axial r (-4..+4) to the minimum q value in that row.
 _Q_MIN = {
-    -4:  0, -3: -1, -2: -2, -1: -3,
-     0: -4,
-     1: -4,  2: -4,  3: -4,  4: -4,
+        -4:  0, -3: -1, -2: -2, -1: -3,
+        0: -4,
+        1: -4,  2: -4,  3: -4,  4: -4,
 }
 _ROW_COUNTS = [5, 6, 7, 8, 9, 8, 7, 6, 5]
 
