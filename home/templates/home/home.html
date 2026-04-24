@@ -1,0 +1,190 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Abalone</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #1e1e32;
+    font-family: 'Nunito', sans-serif;
+  }
+
+  /* full-screen background */
+  #home {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 30% 20%, #2e2e50 0%, #1a1a2e 50%, #0f0f1c 100%);
+  }
+
+  #home-canvas {
+    position: absolute; inset: 0;
+    opacity: 0.18; pointer-events: none;
+  }
+
+  /* inner content — scaled by JS */
+  #home-inner {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column;
+    align-items: center;
+    width: 420px;
+    transform-origin: center center;
+  }
+
+  .logo-hex { width: 88px; height: 88px; margin-bottom: 20px; }
+
+  .game-title {
+    font-size: 60px; font-weight: 900;
+    letter-spacing: 6px; text-transform: uppercase;
+    background: linear-gradient(135deg, #a0b8ff 0%, #6680dd 40%, #3a4fa0 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; line-height: 1; margin-bottom: 8px;
+  }
+
+  .game-subtitle {
+    font-size: 12px; letter-spacing: 4px;
+    color: rgba(160,180,255,0.45); text-transform: uppercase;
+    margin-bottom: 56px;
+  }
+
+  /* stats row */
+  .stats-row {
+    display: flex; gap: 28px;
+    margin-bottom: 52px;
+  }
+  .stat-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .stat-value {
+    font-size: 28px; font-weight: 900;
+    background: linear-gradient(135deg, #a0b8ff, #6680dd);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    color: rgba(160,180,255,0.4); text-transform: uppercase;
+  }
+  .stat-divider {
+    width: 1px; background: rgba(160,180,255,0.15);
+    align-self: stretch; margin: 4px 0;
+  }
+
+  /* difficulty badge */
+  .difficulty-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,80,80,0.1);
+    border: 1px solid rgba(255,80,80,0.25);
+    border-radius: 20px; padding: 6px 16px;
+    margin-bottom: 36px;
+  }
+  .difficulty-badge .dot-red {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #ff5555;
+    box-shadow: 0 0 6px rgba(255,85,85,0.7);
+  }
+  .difficulty-badge span {
+    font-size: 11px; font-weight: 800; letter-spacing: 2px;
+    color: rgba(255,130,130,0.9); text-transform: uppercase;
+  }
+
+  /* play button */
+  .start-btn {
+    position: relative; padding: 18px 72px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 17px; font-weight: 800;
+    letter-spacing: 2px; text-transform: uppercase; color: #fff;
+    background: linear-gradient(135deg, #4a6ad8, #2e4ab0);
+    border: none; border-radius: 50px; cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 6px 28px rgba(50,80,200,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+    overflow: hidden; text-decoration: none; display: inline-block;
+  }
+  .start-btn::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
+    border-radius: 50px;
+  }
+  .start-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 36px rgba(50,80,200,0.65), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .start-btn:active { transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="home">
+  <canvas id="home-canvas"></canvas>
+
+  <div id="home-inner">
+
+    <!-- Logo -->
+    <svg class="logo-hex" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="45,4 82,24 82,66 45,86 8,66 8,24"
+        fill="url(#hexgrad)" stroke="rgba(140,160,255,0.6)" stroke-width="2"/>
+      <defs>
+        <radialGradient id="hexgrad" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#4a6ad8"/>
+          <stop offset="100%" stop-color="#1a2a70"/>
+        </radialGradient>
+      </defs>
+      <circle cx="31" cy="30" r="7" fill="url(#wm)"/>
+      <circle cx="45" cy="30" r="7" fill="url(#wm)"/>
+      <circle cx="59" cy="30" r="7" fill="url(#wm)"/>
+      <circle cx="31" cy="60" r="7" fill="url(#bm)"/>
+      <circle cx="45" cy="60" r="7" fill="url(#bm)"/>
+      <circle cx="59" cy="60" r="7" fill="url(#bm)"/>
+      <defs>
+        <radialGradient id="wm" cx="35%" cy="30%">
+          <stop offset="0%" stop-color="#fff"/>
+          <stop offset="100%" stop-color="#bbb"/>
+        </radialGradient>
+        <radialGradient id="bm" cx="35%" cy="30%">
+          <stop offset="0%" stop-color="#666"/>
+          <stop offset="100%" stop-color="#111"/>
+        </radialGradient>
+      </defs>
+    </svg>
+
+    <div class="game-title">Abalone</div>
+    <div class="game-subtitle">Strategic Marble Board Game</div>
+
+    <!-- Quick stats -->
+    <div class="stats-row">
+      <div class="stat-item">
+        <span class="stat-value">6</span>
+        <span class="stat-label">Push to win</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-value">61</span>
+        <span class="stat-label">Board cells</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-value">14</span>
+        <span class="stat-label">Marbles each</span>
+      </div>
+    </div>
+
+    <!-- Difficulty indicator -->
+    <div class="difficulty-badge">
+      <div class="dot-red"></div>
+      <span>Expert difficulty</span>
+    </div>
+
+    <a class="start-btn" href="/game/">▶ &nbsp; Play Now</a>
+
+  </div>
+</div>
+
+<script src="{% static 'home.js' %}"></script>
+</body>
+</html>

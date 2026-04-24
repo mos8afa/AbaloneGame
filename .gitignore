@@ -205,3 +205,49 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# 🔹 Virtual Environment
+venv/
+env/
+ENV/
+
+# 🔹 Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 🔹 Django stuff
+*.log
+db.sqlite3
+media/
+
+# 🔹 Static files (لو بتعمل collectstatic)
+staticfiles/
+
+# 🔹 Environment variables
+.env
+
+# 🔹 VS Code
+.vscode/
+
+# 🔹 PyCharm
+.idea/
+
+# 🔹 OS files
+.DS_Store
+Thumbs.db
+
+# 🔹 Migrations (اختياري)
+# خليه لو انت عايز ترفع migrations
+# احذفه لو شغال لوحدك وعايز تقلل الحجم
+*/migrations/*
+!*/migrations/__init__.py
+
+# 🔹 Coverage / testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 🔹 Node (لو عندك frontend)
+node_modules/
