@@ -1,5 +1,5 @@
 # game_engine.py
-
+import time
 import random
 from copy import deepcopy
 
@@ -279,20 +279,15 @@ class GameEngine:
     # =========================
     # 8. AI — Evaluation & Search
     # =========================
-
-    # ── Evaluation weight constants ───────────────────────────
     _CAPTURE_W   = 10_000
     _CENTER_MULT =    300
     _CENTER_W    = {0: 5, 1: 4, 2: 3, 3: 1, 4: -2}
     _ATTACK_W    =    200
     _COHESION_W  =     50
 
-    # ── Phase thresholds ──────────────────────────────────────
     _PHASE_MID  = 4
     _PHASE_LATE = 10
 
-    # ── Pre-computed hex distances for all 61 board cells ─────
-    # Built once at class definition; avoids repeated max(abs…) calls.
     _DIST_CACHE: dict = {}
 
     @classmethod
@@ -315,12 +310,7 @@ class GameEngine:
             return "mid"
         return "late"
 
-    # ── Board hash for transposition table ────────────────────
     def _board_hash(self):
-        """
-        Fast position key: only non-empty cells + capture counts + player.
-        Uses frozenset so order doesn't matter.
-        """
         return (
             frozenset((k, v) for k, v in self.board.items() if v != EMPTY),
             self.white_out,
@@ -330,26 +320,16 @@ class GameEngine:
 
     # ── Apply / Undo (replaces deepcopy) ──────────────────────
     def _make_move(self, group, direction):
-        """
-        Apply a move and return an undo record.
-        The undo record is a tuple:
-          (changed_cells, old_white_out, old_black_out, old_player)
-        where changed_cells is a list of (coord, old_value).
-        """
         old_wo     = self.white_out
         old_bo     = self.black_out
         old_player = self.current_player
 
-        # Snapshot only the cells that will change
         player   = self.current_player
         opponent = BLACK if player == WHITE else WHITE
 
         axis   = self.get_group_axis(group)
-        inline = (axis is None
-                  or direction == axis
-                  or direction == self.opposite_direction(axis))
+        inline = (axis is None or direction == axis or direction == self.opposite_direction(axis))
 
-        # Collect coords that will be touched
         touched = set(group)
         for coord in group:
             touched.add(self.add(coord, direction))
@@ -363,13 +343,11 @@ class GameEngine:
 
         changed = [(c, self.board.get(c, EMPTY)) for c in touched if c in self.board]
 
-        # Apply the move (switch=True so current_player flips)
         self.apply_group_move(group, direction, switch=True)
 
         return (changed, old_wo, old_bo, old_player)
 
     def _undo_move(self, undo_record):
-        """Restore the board to the state before _make_move was called."""
         changed, old_wo, old_bo, old_player = undo_record
         for coord, value in changed:
             self.board[coord] = value
@@ -379,11 +357,6 @@ class GameEngine:
 
     # ── Core evaluation ───────────────────────────────────────
     def evaluate_board(self, player=None):
-        """
-        Multi-factor static evaluation from `player`'s perspective.
-        Factors: captures (dominant) > center control > attack > cohesion.
-        Phase scaling adjusts center vs attack emphasis over the game.
-        """
         player   = player or self.current_player
         opponent = BLACK if player == WHITE else WHITE
         phase    = self._game_phase()
@@ -397,12 +370,10 @@ class GameEngine:
 
         score = 0
 
-        # 1. Captures
         my_caps  = self.black_out if player == BLACK else self.white_out
         opp_caps = self.white_out if player == BLACK else self.black_out
         score += (my_caps - opp_caps) * self._CAPTURE_W
 
-        # 2. Center control (single pass over board)
         board    = self.board
         dist_c   = self._DIST_CACHE
         cw       = self._CENTER_W
@@ -418,18 +389,50 @@ class GameEngine:
                 center_score -= w
         score += int(center_score * center_scale)
 
-        # 3. Attack bonus
         score += int(self._attack_score(player, opponent) * attack_scale)
         score -= int(self._attack_score(opponent, player) * attack_scale)
 
-        # 4. Cohesion
         score += self._cohesion_score(player)
         score -= self._cohesion_score(opponent)
 
         return score
 
+    def _edge_kill_bonus(self, move):
+        group, direction = move
+        player = self.current_player
+        opponent = BLACK if player == WHITE else WHITE
+
+        head = self.get_group_head(group, direction)
+        next_cell = self.add(head, direction)
+
+        if self.get_piece(next_cell) != opponent:
+            return 0
+
+        opp_line = self.get_line_from(head, direction)
+        if not opp_line:
+            return 0
+
+        score = 0
+
+        for c in opp_line:
+            dist = max(abs(c[0]), abs(c[1]), abs(-c[0]-c[1]))
+
+            if dist == 4:
+                score += 200_000   
+            elif dist == 3:
+                score += 80_000
+
+            empty_neighbors = 0
+            for d in self.DIRECTIONS:
+                n = self.add(c, d)
+                if self.in_bounds(n) and self.get_piece(n) == EMPTY:
+                    empty_neighbors += 1
+
+            if empty_neighbors <= 2:
+                score += 100_000 
+
+        return score
     def _attack_score(self, attacker, defender):
-        """O(pieces × 6) attack threat score — no sorting, no cloning."""
         score = 0
         board = self.board
         add   = self.add
@@ -451,7 +454,6 @@ class GameEngine:
         return score // 2
 
     def _cohesion_score(self, player):
-        """O(pieces × 3) — each pair counted once via half-directions."""
         score     = 0
         board     = self.board
         add       = self.add
@@ -466,20 +468,13 @@ class GameEngine:
 
     # ── Move ordering ─────────────────────────────────────────
     def _move_priority(self, move):
-        """
-        Fast heuristic score for move ordering (no cloning).
-        Tiers: capture(10M) > push(500K) > 3-inline(50K) >
-               2-inline(10K) > center-gain(1K×Δ) > inline(100) > lateral(0)
-        """
         group, direction = move
         player   = self.current_player
         opponent = BLACK if player == WHITE else WHITE
         board    = self.board
 
         axis   = self.get_group_axis(group)
-        inline = (axis is None
-                  or direction == axis
-                  or direction == self.opposite_direction(axis))
+        inline = (axis is None or direction == axis or direction == self.opposite_direction(axis))
 
         push_score = 0
         if inline and len(group) >= 2:
@@ -505,26 +500,42 @@ class GameEngine:
         center_bonus = max(center_delta, 0) * 1_000
 
         inline_bonus = 100 if inline else 0
-        return push_score + size_bonus + center_bonus + inline_bonus
+        edge_bonus = self._edge_kill_bonus(move)
+        return push_score + edge_bonus + size_bonus + center_bonus + inline_bonus
 
-    # ── Root search: iterative deepening + time limit ─────────
     def get_ai_move(self, difficulty="medium"):
-        """
-        Iterative deepening minimax with alpha-beta pruning.
-
-        Optimisations applied:
-          • Iterative deepening — returns best move found within time limit
-          • Time limit — hard cutoff (1.5 s for hard, 0.8 s for medium)
-          • Transposition table — skip re-evaluating identical positions
-          • Branch cap — only top-N moves explored per node (reduces branching)
-          • Apply/undo — no deepcopy; board mutated in-place and restored
-          • Move ordering — captures first for maximum alpha-beta pruning
-        """
         import time
 
         valid_moves = self.get_valid_moves(self.current_player)
         if not valid_moves:
             return None
+        for move in valid_moves:
+            group, direction = move
+            player = self.current_player
+            opponent = BLACK if player == WHITE else WHITE
+
+            axis = self.get_group_axis(group)
+            inline = (axis is None
+                    or direction == axis
+                    or direction == self.opposite_direction(axis))
+
+            if not inline or len(group) < 2:
+                continue
+
+            head = self.get_group_head(group, direction)
+            next_cell = self.add(head, direction)
+
+            if self.get_piece(next_cell) != opponent:
+                continue
+
+            opp_line = self.get_line_from(head, direction)
+            if not opp_line:
+                continue
+
+            after = self.add(opp_line[-1], direction)
+
+            if after not in self.board:
+                return move
         if difficulty == "easy":
             return random.choice(valid_moves)
 
@@ -532,13 +543,12 @@ class GameEngine:
         max_depth  = 2   if difficulty == "medium" else 4
         branch_cap = 14  if difficulty == "medium" else 18
 
-        # Order and cap moves at root
         ordered = sorted(valid_moves, key=self._move_priority, reverse=True)
         ordered = ordered[:branch_cap]
 
         best_move  = ordered[0]
         deadline   = time.time() + time_limit
-        tt         = {}          # transposition table: hash → (depth, score)
+        tt         = {}         
 
         for depth in range(1, max_depth + 1):
             if time.time() >= deadline:
@@ -567,34 +577,26 @@ class GameEngine:
                 if beta <= alpha:
                     break
 
-            # Only update best_move if this iteration completed fully
             if time.time() < deadline or depth == 1:
                 best_move = iter_best_move
 
-            # Re-order for next iteration using scores from this one
-            # (simple: put the best move first)
             if iter_best_move in ordered:
                 ordered.remove(iter_best_move)
                 ordered.insert(0, iter_best_move)
 
         return best_move
 
-    # ── Recursive alpha-beta with apply/undo ──────────────────
     def _alphabeta(self, depth, player, alpha, beta, maximizing,
-                   deadline, tt, branch_cap):
-        import time
+        deadline, tt, branch_cap):
 
-        # Terminal / leaf
         if self.is_game_over():
             return self.evaluate_board(player)
         if depth == 0:
             return self.evaluate_board(player)
 
-        # Time cutoff — return a neutral score so the caller ignores this branch
         if time.time() >= deadline:
             return self.evaluate_board(player)
 
-        # Transposition table lookup
         key = self._board_hash()
         if key in tt:
             cached_depth, cached_score = tt[key]
@@ -605,7 +607,6 @@ class GameEngine:
         if not valid_moves:
             return self.evaluate_board(player)
 
-        # Order and cap moves
         if depth >= 2:
             ordered = sorted(valid_moves, key=self._move_priority, reverse=True)
         else:
@@ -641,10 +642,8 @@ class GameEngine:
                 if beta <= alpha:
                     break
 
-        # Store in transposition table
         tt[key] = (depth, value)
         return value
 
 
-# Build the hex-distance cache once at import time
 GameEngine._build_dist_cache()
