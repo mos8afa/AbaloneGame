@@ -536,8 +536,6 @@ class GameEngine:
 
             if after not in self.board:
                 return move
-        if difficulty == "easy":
-            return random.choice(valid_moves)
 
         time_limit = 0.8 if difficulty == "medium" else 1.5
         max_depth  = 2   if difficulty == "medium" else 4
