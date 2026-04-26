@@ -122,7 +122,14 @@ def start_game(request):
             level = 3
         request.session["difficulty"] = DIFFICULTY_MAP.get(level, "hard")
 
-    engine = GameEngine()
+    if request.session.get("difficulty") == "medium":
+        engine = GameEngine(mode="king")
+    elif request.session.get("difficulty") == "hard":
+        # ===== MODIFICATION: FINAL LEVEL WIN CONDITION ONLY =====
+        # mode="hard" activates dual win: 6 marbles OR king elimination
+        engine = GameEngine(mode="hard")
+    else:
+        engine = GameEngine()   # easy / standard: 6-marble rule only
     _save_engine(request, engine)
     return JsonResponse({"status": "started", **_serialize_for_frontend(engine)})
 

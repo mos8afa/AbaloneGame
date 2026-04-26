@@ -8,22 +8,22 @@
 // 1. CANVAS
 // ══════════════════════════════════════════════════════════════
 const canvas = document.getElementById("board");
-const ctx    = canvas.getContext("2d");
+const ctx = canvas.getContext("2d");
 
 const BOARD_W = 640;
 const BOARD_H = 560;
-canvas.width  = BOARD_W;
+canvas.width = BOARD_W;
 canvas.height = BOARD_H;
 
 // Board is shifted right/up to leave room for label strips
 const CX = BOARD_W / 2 + 20;
 const CY = BOARD_H / 2 - 10;
 
-const ROW_COUNTS  = [5, 6, 7, 8, 9, 8, 7, 6, 5];
-const R           = 25;   // marble radius
-const DX          = 58;   // horizontal cell spacing
-const DY          = 50;   // vertical   cell spacing
-const ANIM_MS     = 200;  // marble animation duration (ms)
+const ROW_COUNTS = [5, 6, 7, 8, 9, 8, 7, 6, 5];
+const R = 25;   // marble radius
+const DX = 58;   // horizontal cell spacing
+const DY = 50;   // vertical   cell spacing
+const ANIM_MS = 200;  // marble animation duration (ms)
 
 // ══════════════════════════════════════════════════════════════
 // 2. BOARD FLIP
@@ -38,7 +38,7 @@ const ANIM_MS     = 200;  // marble animation duration (ms)
 // ══════════════════════════════════════════════════════════════
 function cellPos(row, col) {
   const displayRow = 8 - row;
-  const count      = ROW_COUNTS[row];
+  const count = ROW_COUNTS[row];
   return {
     x: CX - ((count - 1) * DX) / 2 + col * DX,
     y: CY + (displayRow - 4) * DY,
@@ -75,13 +75,13 @@ function cellsLabel(cells) {
 // ══════════════════════════════════════════════════════════════
 const Q_MIN_MAP = {
   "-4": 0, "-3": -1, "-2": -2, "-1": -3,
-   "0": -4, "1": -4,  "2": -4,  "3": -4, "4": -4,
+  "0": -4, "1": -4, "2": -4, "3": -4, "4": -4,
 };
 
 const HEX_DIRS = [
-  { dq:  1, dr:  0 }, { dq: -1, dr:  0 },
-  { dq:  0, dr:  1 }, { dq:  0, dr: -1 },
-  { dq:  1, dr: -1 }, { dq: -1, dr:  1 },
+  { dq: 1, dr: 0 }, { dq: -1, dr: 0 },
+  { dq: 0, dr: 1 }, { dq: 0, dr: -1 },
+  { dq: 1, dr: -1 }, { dq: -1, dr: 1 },
 ];
 
 function frontendToBackend(row, col) {
@@ -113,7 +113,7 @@ function getCSRFToken() {
 // 6. SOUND  (Web Audio API — procedural, zero external files)
 // ══════════════════════════════════════════════════════════════
 let audioCtx = null;
-let muted    = false;
+let muted = false;
 
 function _getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -124,13 +124,13 @@ function _getAudioCtx() {
 function _tone(opts) {
   if (muted) return;
   try {
-    const ac   = _getAudioCtx();
-    const osc  = ac.createOscillator();
+    const ac = _getAudioCtx();
+    const osc = ac.createOscillator();
     const gain = ac.createGain();
     osc.connect(gain);
     gain.connect(ac.destination);
-    osc.type            = opts.type  || "sine";
-    osc.frequency.value = opts.freq  || 440;
+    osc.type = opts.type || "sine";
+    osc.frequency.value = opts.freq || 440;
     gain.gain.setValueAtTime(opts.vol || 0.18, ac.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + (opts.dur || 0.18));
     if (opts.freqEnd) {
@@ -138,13 +138,13 @@ function _tone(opts) {
     }
     osc.start(ac.currentTime);
     osc.stop(ac.currentTime + (opts.dur || 0.18) + 0.02);
-  } catch (_) {}
+  } catch (_) { }
 }
 
 const SFX = {
-  select()  { _tone({ type: "sine",     freq: 520, freqEnd: 620, dur: 0.10, vol: 0.12 }); },
-  deselect(){ _tone({ type: "sine",     freq: 400, freqEnd: 320, dur: 0.08, vol: 0.08 }); },
-  move()    { _tone({ type: "triangle", freq: 300, freqEnd: 180, dur: 0.18, vol: 0.20 }); },
+  select() { _tone({ type: "sine", freq: 520, freqEnd: 620, dur: 0.10, vol: 0.12 }); },
+  deselect() { _tone({ type: "sine", freq: 400, freqEnd: 320, dur: 0.08, vol: 0.08 }); },
+  move() { _tone({ type: "triangle", freq: 300, freqEnd: 180, dur: 0.18, vol: 0.20 }); },
   push() {
     _tone({ type: "sawtooth", freq: 200, freqEnd: 100, dur: 0.22, vol: 0.18 });
     setTimeout(() => _tone({ type: "sine", freq: 160, dur: 0.14, vol: 0.12 }), 80);
@@ -176,15 +176,36 @@ function toggleMute() {
 // 7. GAME STATE
 // ══════════════════════════════════════════════════════════════
 let gameState = {
-  board:    [],
+  board: [],
   captured: { B: 0, W: 0 },
-  turn:     "player",
+  turn: "player",
 };
-let isLoading     = false;
-let gameActive    = false;
+let isLoading = false;
+let gameActive = false;
 let selectedGroup = [];
-let moveHistory   = [];
-let hoverCell     = null;
+let moveHistory = [];
+let hoverCell = null;
+
+// ── Difficulty selection ──────────────────────────────────────
+// Read from URL: /game/?difficulty=1  (1=easy, 2=medium, 3=hard)
+// Default to 3 (hard) when not specified.
+//
+// ===== WHERE EASY IS CALLED  → difficulty=1 → backend "easy" =====
+// ===== WHERE HARD IS CALLED  → difficulty=3 → backend "hard" =====
+const _urlParams        = new URLSearchParams(window.location.search);
+const selectedDifficulty = parseInt(_urlParams.get("difficulty") || "3", 10);
+
+const DIFFICULTY_LABELS = { 1: "Easy", 2: "King Mode", 3: "Expert" };
+const DIFFICULTY_COLORS = {
+  1: "rgba(130,255,150,0.85)",
+  2: "rgba(255,210,80,0.90)",
+  3: "rgba(255,130,130,0.85)",
+};
+const AI_SUB_LABELS = {
+  1: "Black marbles · Easy",
+  2: "Black king · King Mode",
+  3: "Black marbles · Expert",
+};
 
 // Animation queue: [{row,col,fromX,fromY,toX,toY,piece,t}]
 let animQueue = [];
@@ -222,25 +243,25 @@ function computeHintCells() {
 
 // Colour constants
 const CLR = {
-  hole:        "#1a2a40",
-  selRing:     "#ffe066",
-  hintRing:    "rgba(100,220,255,0.55)",
-  hintFill:    "rgba(100,220,255,0.10)",
-  hoverRing:   "rgba(255,255,255,0.30)",
-  invalidFlash:"rgba(255,80,80,0.55)",
+  hole: "#1a2a40",
+  selRing: "#ffe066",
+  hintRing: "rgba(100,220,255,0.55)",
+  hintFill: "rgba(100,220,255,0.10)",
+  hoverRing: "rgba(255,255,255,0.30)",
+  invalidFlash: "rgba(255,80,80,0.55)",
 };
 
 // Label strip constants
-const STRIP_W      = 26;
-const STRIP_FILL   = "rgba(255,255,255,0.07)";
+const STRIP_W = 26;
+const STRIP_FILL = "rgba(255,255,255,0.07)";
 const STRIP_STROKE = "rgba(255,255,255,0.20)";
-const STRIP_TEXT   = "rgba(255,255,255,0.85)";
+const STRIP_TEXT = "rgba(255,255,255,0.85)";
 const STRIP_SHADOW = "rgba(0,0,0,0.70)";
 
 function render() {
   ctx.clearRect(0, 0, BOARD_W, BOARD_H);
   _drawBoardBackground();
-  drawLabels();
+  // drawLabels(); // Board labels removed
   _drawCells();
   _drawAnimatingMarbles();
 }
@@ -260,98 +281,21 @@ function _drawBoardBackground() {
 //   LEFT   — row labels i (top) → a (bottom)
 //   BOTTOM — column labels 1–5
 //   RIGHT  — column labels 6–9
-function drawLabels() {
-  ctx.save();
-
-  function _fillStrip(pts) {
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    ctx.closePath();
-    ctx.fillStyle   = STRIP_FILL;
-    ctx.fill();
-    ctx.strokeStyle = STRIP_STROKE;
-    ctx.lineWidth   = 1;
-    ctx.stroke();
-  }
-
-  function _lbl(text, x, y) {
-    ctx.shadowColor   = STRIP_SHADOW;
-    ctx.shadowBlur    = 3;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 1;
-    ctx.fillStyle     = STRIP_TEXT;
-    ctx.fillText(text, x, y);
-    ctx.shadowBlur    = 0;
-  }
-
-  ctx.font         = "bold 12px 'Nunito','Segoe UI',sans-serif";
-  ctx.textAlign    = "center";
-  ctx.textBaseline = "middle";
-
-  // LEFT STRIP — row labels i→a
-  {
-    const outerPts = [], innerPts = [];
-    for (let row = 8; row >= 0; row--) {
-      const { x: x0, y } = cellPos(row, 0);
-      const ix = x0 - R, ox = ix - STRIP_W;
-      outerPts.push([ox, y - R], [ox, y + R]);
-      innerPts.push([ix, y - R], [ix, y + R]);
-    }
-    _fillStrip([...outerPts, ...[...innerPts].reverse()]);
-    for (let row = 0; row < 9; row++) {
-      const { x: x0, y } = cellPos(row, 0);
-      _lbl(String.fromCharCode(ORD_A + row), x0 - R - STRIP_W / 2, y);
-    }
-  }
-
-  // BOTTOM STRIP — column labels 1–5
-  {
-    const { x: xLeft, y: yRow0 } = cellPos(0, 0);
-    const { x: xRight }          = cellPos(0, ROW_COUNTS[0] - 1);
-    const innerY = yRow0 + R, outerY = innerY + STRIP_W;
-    _fillStrip([
-      [xLeft - R, innerY], [xRight + R, innerY],
-      [xRight + R, outerY], [xLeft - R, outerY],
-    ]);
-    for (let col = 0; col < ROW_COUNTS[0]; col++) {
-      const { x } = cellPos(0, col);
-      _lbl(String(col + 1), x, innerY + STRIP_W / 2);
-    }
-  }
-
-  // RIGHT STRIP — column labels 6–9
-  {
-    const innerPts = [], outerPts = [];
-    for (let row = 0; row <= 4; row++) {
-      const { x: xN, y } = cellPos(row, ROW_COUNTS[row] - 1);
-      const ix = xN + R, ox = ix + STRIP_W;
-      innerPts.push([ix, y + R], [ix, y - R]);
-      outerPts.push([ox, y + R], [ox, y - R]);
-    }
-    _fillStrip([...innerPts, ...[...outerPts].reverse()]);
-    for (let row = 1; row <= 4; row++) {
-      const { x: xN, y } = cellPos(row, ROW_COUNTS[row] - 1);
-      _lbl(String(ROW_COUNTS[row]), xN + R + STRIP_W / 2, y);
-    }
-  }
-
-  ctx.restore();
-}
+// drawLabels removed: board labels are no longer rendered
 
 // ── Cells + marbles ───────────────────────────────────────────
 function _drawCells() {
-  const now         = performance.now();
+  const now = performance.now();
   const showInvalid = now < invalidFlashUntil;
 
   for (let row = 0; row < 9; row++) {
     for (let col = 0; col < ROW_COUNTS[row]; col++) {
       const { x, y } = cellPos(row, col);
-      const key      = `${row},${col}`;
-      const piece    = gameState.board[row]?.[col];
-      const inSel    = _isInGroup(row, col);
-      const isHover  = hoverCell && hoverCell.row === row && hoverCell.col === col;
-      const isHint   = hintSet.has(key);   // O(1) — was O(n)
+      const key = `${row},${col}`;
+      const piece = gameState.board[row]?.[col];
+      const inSel = _isInGroup(row, col);
+      const isHover = hoverCell && hoverCell.row === row && hoverCell.col === col;
+      const isHint = hintSet.has(key);   // O(1) — was O(n)
 
       // drop shadow
       ctx.beginPath();
@@ -374,7 +318,7 @@ function _drawCells() {
         ctx.beginPath();
         ctx.arc(x, y, R + 4, 0, Math.PI * 2);
         ctx.strokeStyle = CLR.hintRing;
-        ctx.lineWidth   = 2;
+        ctx.lineWidth = 2;
         ctx.stroke();
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, Math.PI * 2);
@@ -400,21 +344,21 @@ function _drawCells() {
         ctx.beginPath();
         ctx.arc(x, y, R + 6, 0, Math.PI * 2);
         ctx.strokeStyle = CLR.selRing;
-        ctx.lineWidth   = 3;
+        ctx.lineWidth = 3;
         ctx.stroke();
         ctx.beginPath();
         ctx.arc(x, y, R + 3, 0, Math.PI * 2);
         ctx.strokeStyle = "rgba(255,224,102,0.35)";
-        ctx.lineWidth   = 5;
+        ctx.lineWidth = 5;
         ctx.stroke();
       }
 
       // hover ring
-      if (isHover && piece === "W" && !inSel) {
+      if (isHover && (piece === "W" || piece === "WK") && !inSel) {
         ctx.beginPath();
         ctx.arc(x, y, R + 4, 0, Math.PI * 2);
         ctx.strokeStyle = CLR.hoverRing;
-        ctx.lineWidth   = 2;
+        ctx.lineWidth = 2;
         ctx.stroke();
       }
     }
@@ -422,16 +366,30 @@ function _drawCells() {
 }
 
 function _drawMarble(x, y, piece) {
-  const isWhite = piece === "W";
+  const isWhite     = piece === "W";
+  const isWhiteKing = piece === "WK";  // ===== MEDIUM: player king =====
+  const isBlackKing = piece === "BK";  // ===== MEDIUM: AI king =====
+
   const g = ctx.createRadialGradient(x - R * 0.32, y - R * 0.36, R * 0.04, x, y, R);
   if (isWhite) {
-    g.addColorStop(0,    "#ffffff");
+    g.addColorStop(0, "#ffffff");
     g.addColorStop(0.55, "#e0e0e0");
-    g.addColorStop(1,    "#a8a8a8");
+    g.addColorStop(1, "#a8a8a8");
+  } else if (isWhiteKing) {
+    // Gold / amber — clearly distinct from white
+    g.addColorStop(0, "#fff8b0");
+    g.addColorStop(0.45, "#d4a000");
+    g.addColorStop(1, "#6a4000");
+  } else if (isBlackKing) {
+    // Purple / violet — clearly distinct from black
+    g.addColorStop(0, "#d8a8ff");
+    g.addColorStop(0.45, "#7010c8");
+    g.addColorStop(1, "#200050");
   } else {
-    g.addColorStop(0,    "#6a6a6a");
+    // Normal black marble
+    g.addColorStop(0, "#6a6a6a");
     g.addColorStop(0.45, "#252525");
-    g.addColorStop(1,    "#080808");
+    g.addColorStop(1, "#080808");
   }
   ctx.beginPath();
   ctx.arc(x, y, R, 0, Math.PI * 2);
@@ -441,21 +399,34 @@ function _drawMarble(x, y, piece) {
   // rim
   ctx.beginPath();
   ctx.arc(x, y, R, 0, Math.PI * 2);
-  ctx.strokeStyle = isWhite ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.06)";
-  ctx.lineWidth   = 1;
+  if (isWhiteKing)      ctx.strokeStyle = "rgba(255,200,0,0.55)";
+  else if (isBlackKing) ctx.strokeStyle = "rgba(180,80,255,0.55)";
+  else ctx.strokeStyle = isWhite ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
   // primary specular
   ctx.beginPath();
   ctx.arc(x - R * 0.28, y - R * 0.30, R * 0.22, 0, Math.PI * 2);
-  ctx.fillStyle = isWhite ? "rgba(255,255,255,0.80)" : "rgba(255,255,255,0.20)";
+  if (isWhiteKing)      ctx.fillStyle = "rgba(255,255,190,0.80)";
+  else if (isBlackKing) ctx.fillStyle = "rgba(220,160,255,0.55)";
+  else ctx.fillStyle = isWhite ? "rgba(255,255,255,0.80)" : "rgba(255,255,255,0.20)";
   ctx.fill();
 
   // secondary specular
   ctx.beginPath();
   ctx.arc(x - R * 0.10, y - R * 0.55, R * 0.10, 0, Math.PI * 2);
-  ctx.fillStyle = isWhite ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.10)";
+  ctx.fillStyle = (isWhite || isWhiteKing) ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.10)";
   ctx.fill();
+
+  // Crown symbol on king pieces
+  if (isWhiteKing || isBlackKing) {
+    ctx.font = `bold ${Math.round(R * 0.82)}px serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = isWhiteKing ? "rgba(50,25,0,0.90)" : "rgba(240,200,255,0.95)";
+    ctx.fillText("♛", x, y + R * 0.06);
+  }
 }
 
 function _drawAnimatingMarbles() {
@@ -501,9 +472,9 @@ function animateMove(oldBoard, newBoard) {
       });
       if (best !== null) {
         matched.add(best);
-        const a    = appeared[best];
+        const a = appeared[best];
         const from = cellPos(d.row, d.col);
-        const to   = cellPos(a.row, a.col);
+        const to = cellPos(a.row, a.col);
         entries.push({ row: a.row, col: a.col, fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, piece: d.piece, t: 0 });
       }
     });
@@ -511,7 +482,7 @@ function animateMove(oldBoard, newBoard) {
     if (entries.length === 0) { resolve(); return; }
 
     animQueue = entries;
-    animSet   = new Set(entries.map(e => `${e.row},${e.col}`));
+    animSet = new Set(entries.map(e => `${e.row},${e.col}`));
 
     let startTime = null;
     function step(ts) {
@@ -523,7 +494,7 @@ function animateMove(oldBoard, newBoard) {
         requestAnimationFrame(step);
       } else {
         animQueue = [];
-        animSet   = new Set();
+        animSet = new Set();
         resolve();
       }
     }
@@ -609,7 +580,7 @@ function addHistory(who, cells, capture) {
 }
 
 function _renderHistory() {
-  const list    = document.getElementById("history-list");
+  const list = document.getElementById("history-list");
   const countEl = document.getElementById("history-count");
   if (!list) return;
 
@@ -633,13 +604,13 @@ function _renderHistory() {
     rowEl.className = "move-pair";
 
     const numEl = document.createElement("div");
-    numEl.className  = "move-num";
+    numEl.className = "move-num";
     numEl.textContent = p.num;
     rowEl.appendChild(numEl);
 
     ["you", "ai"].forEach(side => {
       const cell = document.createElement("div");
-      const m    = p[side];
+      const m = p[side];
       cell.className = `move-cell ${side}${idx === pairs.length - 1 ? " latest" : ""}`;
       if (m) {
         const dot = document.createElement("div");
@@ -648,7 +619,7 @@ function _renderHistory() {
         cell.appendChild(document.createTextNode(m.notation));
         if (m.capture) {
           const cap = document.createElement("span");
-          cap.className  = "move-capture";
+          cap.className = "move-capture";
           cap.textContent = "✕";
           cell.appendChild(cap);
         }
@@ -684,7 +655,7 @@ function showGameOver(winner) {
     "animation:fadeIn 0.4s ease;",
   ].join("");
 
-  const color  = isWin ? "#ffe066" : "#ff8888";
+  const color = isWin ? "#ffe066" : "#ff8888";
   const shadow = isWin ? "#ffe066" : "#ff6666";
   overlay.innerHTML = `
     <style>@keyframes fadeIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}</style>
@@ -708,12 +679,12 @@ function restartGame() {
 // 16. STATE UPDATE FROM BACKEND
 // ══════════════════════════════════════════════════════════════
 async function updateFromBackend(data, opts = {}) {
-  const s        = data.state || data;
+  const s = data.state || data;
   const oldBoard = gameState.board.map(r => [...r]);
 
-  if (s.board)    gameState.board    = s.board;
+  if (s.board) gameState.board = s.board;
   if (s.captured) gameState.captured = s.captured;
-  if (s.turn)     gameState.turn     = s.turn;
+  if (s.turn) gameState.turn = s.turn;
 
   if (opts.animate && oldBoard.length > 0) {
     await animateMove(oldBoard, gameState.board);
@@ -726,7 +697,7 @@ async function updateFromBackend(data, opts = {}) {
   const prevB = opts.prevB ?? 0;
   const prevW = opts.prevW ?? 0;
   if (gameState.captured.B > prevB) { _popScore("score-black"); _flashScore("you"); }
-  if (gameState.captured.W > prevW) { _popScore("score-white"); _flashScore("ai");  }
+  if (gameState.captured.W > prevW) { _popScore("score-white"); _flashScore("ai"); }
 
   updateScoreDisplay();
   setHint(
@@ -741,20 +712,32 @@ async function updateFromBackend(data, opts = {}) {
 // ══════════════════════════════════════════════════════════════
 function _post(url, body) {
   return fetch(url, {
-    method:  "POST",
+    method: "POST",
     headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-    body:    JSON.stringify(body),
+    body: JSON.stringify(body),
   });
 }
 
 async function startGame() {
   isLoading = true;
   setHint("Starting game…");
+
+  // ── Apply difficulty labels to UI ────────────────────────────
+  // ===== EASY is called when selectedDifficulty === 1 =====
+  // ===== HARD is called when selectedDifficulty === 3 =====
+  const label = DIFFICULTY_LABELS[selectedDifficulty] || "Expert";
+  const color = DIFFICULTY_COLORS[selectedDifficulty] || DIFFICULTY_COLORS[3];
+  const badge = document.getElementById("level-badge");
+  if (badge) { badge.textContent = label; badge.style.color = color; }
+  const aiSub = document.getElementById("ai-sub");
+  if (aiSub) aiSub.textContent = AI_SUB_LABELS[selectedDifficulty] || AI_SUB_LABELS[3];
+
   try {
-    const res  = await _post("/game/start/", { difficulty: 3 });
+    // Pass selectedDifficulty to the backend (1=easy, 2=medium, 3=hard)
+    const res = await _post("/game/start/", { difficulty: selectedDifficulty });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    gameActive    = true;
+    gameActive = true;
     selectedGroup = [];
     hintSet.clear();
     await updateFromBackend(data, { animate: false });
@@ -776,7 +759,7 @@ async function sendMove(group, target) {
   const prevW = gameState.captured.W;
 
   try {
-    const res  = await _post("/game/move/", { group, target });
+    const res = await _post("/game/move/", { group, target });
     const data = await res.json();
 
     if (!res.ok) {
@@ -806,7 +789,7 @@ async function _requestAiMove() {
   const prevW = gameState.captured.W;
 
   try {
-    const res  = await _post("/game/ai/", {});
+    const res = await _post("/game/ai/", {});
     const data = await res.json();
     if (!res.ok) return;
 
@@ -824,9 +807,9 @@ async function _requestAiMove() {
 // 18. INPUT HANDLING
 // ══════════════════════════════════════════════════════════════
 function _hitTest(clientX, clientY) {
-  const rect   = canvas.getBoundingClientRect();
-  const px     = (clientX - rect.left) * (BOARD_W / rect.width);
-  const py     = (clientY - rect.top)  * (BOARD_H / rect.height);
+  const rect = canvas.getBoundingClientRect();
+  const px = (clientX - rect.left) * (BOARD_W / rect.width);
+  const py = (clientY - rect.top) * (BOARD_H / rect.height);
   let best = null, minD = Infinity;
   for (let r = 0; r < 9; r++) {
     for (let c = 0; c < ROW_COUNTS[r]; c++) {
@@ -843,7 +826,7 @@ canvas.addEventListener("mousemove", (e) => {
   if (isLoading || !gameActive) return;
   const cell = _hitTest(e.clientX, e.clientY);
   const prev = hoverCell;
-  hoverCell  = cell;
+  hoverCell = cell;
   const changed = !prev !== !cell
     || (prev && cell && (prev.row !== cell.row || prev.col !== cell.col));
   if (changed) render();
@@ -873,7 +856,7 @@ canvas.addEventListener("click", async (e) => {
   }
 
   // select own marble
-  if (piece === "W" && selectedGroup.length < 3) {
+  if ((piece === "W" || piece === "WK") && selectedGroup.length < 3) {
     selectedGroup.push({ row, col });
     SFX.select();
     computeHintCells();
@@ -907,9 +890,9 @@ function scaleGame() {
   const inner = document.getElementById("game-inner");
   if (!inner) return;
   const panelW = window.innerWidth > 820 ? 220 : 0;
-  const availW = window.innerWidth  - panelW - 24;
+  const availW = window.innerWidth - panelW - 24;
   const availH = window.innerHeight - 24;
-  const scale  = Math.min(availW / (BOARD_W + 20), availH / (BOARD_H + 280), 1);
+  const scale = Math.min(availW / (BOARD_W + 20), availH / (BOARD_H + 280), 1);
   inner.style.transform = `scale(${scale})`;
 }
 

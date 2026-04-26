@@ -33,7 +33,7 @@
     position: relative; z-index: 1;
     display: flex; flex-direction: column;
     align-items: center;
-    width: 420px;
+    width: 480px;
     transform-origin: center center;
   }
 
@@ -50,13 +50,13 @@
   .game-subtitle {
     font-size: 12px; letter-spacing: 4px;
     color: rgba(160,180,255,0.45); text-transform: uppercase;
-    margin-bottom: 56px;
+    margin-bottom: 44px;
   }
 
-  /* stats row */
+  /* ── stats row ── */
   .stats-row {
     display: flex; gap: 28px;
-    margin-bottom: 52px;
+    margin-bottom: 40px;
   }
   .stat-item {
     display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -76,46 +76,149 @@
     align-self: stretch; margin: 4px 0;
   }
 
-  /* difficulty badge */
-  .difficulty-badge {
-    display: flex; align-items: center; gap: 8px;
-    background: rgba(255,80,80,0.1);
-    border: 1px solid rgba(255,80,80,0.25);
-    border-radius: 20px; padding: 6px 16px;
-    margin-bottom: 36px;
-  }
-  .difficulty-badge .dot-red {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #ff5555;
-    box-shadow: 0 0 6px rgba(255,85,85,0.7);
-  }
-  .difficulty-badge span {
-    font-size: 11px; font-weight: 800; letter-spacing: 2px;
-    color: rgba(255,130,130,0.9); text-transform: uppercase;
+  /* ── Choose difficulty label ── */
+  .choose-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 3px;
+    text-transform: uppercase; color: rgba(160,180,255,0.35);
+    margin-bottom: 14px;
   }
 
-  /* play button */
-  .start-btn {
-    position: relative; padding: 18px 72px;
-    font-family: 'Nunito', sans-serif;
-    font-size: 17px; font-weight: 800;
-    letter-spacing: 2px; text-transform: uppercase; color: #fff;
-    background: linear-gradient(135deg, #4a6ad8, #2e4ab0);
-    border: none; border-radius: 50px; cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 6px 28px rgba(50,80,200,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
-    overflow: hidden; text-decoration: none; display: inline-block;
+  /* ── Difficulty cards ── */
+  .diff-row {
+    display: flex; gap: 16px;
+    width: 100%;
   }
-  .start-btn::after {
+
+  .diff-card {
+    flex: 1; position: relative;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 22px 16px 20px;
+    border-radius: 18px;
+    border: 1.5px solid transparent;
+    cursor: pointer; text-decoration: none;
+    transition: transform 0.22s cubic-bezier(.34,1.56,.64,1),
+                box-shadow 0.22s ease,
+                border-color 0.22s ease;
+    overflow: hidden; outline: none;
+  }
+
+  /* Easy — green theme */
+  .diff-card.easy {
+    background: rgba(24,54,34,0.70);
+    border-color: rgba(80,220,120,0.22);
+    box-shadow: 0 4px 24px rgba(80,220,120,0.07);
+  }
+  .diff-card.easy:hover, .diff-card.easy:focus-visible {
+    transform: translateY(-6px) scale(1.03);
+    border-color: rgba(80,220,120,0.70);
+    box-shadow: 0 14px 44px rgba(80,220,120,0.30),
+                0 0 0 1px rgba(80,220,120,0.18),
+                inset 0 1px 0 rgba(80,220,120,0.12);
+  }
+
+  /* Hard — red theme */
+  .diff-card.hard {
+    background: rgba(54,18,18,0.70);
+    border-color: rgba(255,90,90,0.22);
+    box-shadow: 0 4px 24px rgba(255,90,90,0.07);
+  }
+  .diff-card.hard:hover, .diff-card.hard:focus-visible {
+    transform: translateY(-6px) scale(1.03);
+    border-color: rgba(255,90,90,0.70);
+    box-shadow: 0 14px 44px rgba(255,90,90,0.30),
+                0 0 0 1px rgba(255,90,90,0.18),
+                inset 0 1px 0 rgba(255,90,90,0.12);
+  }
+
+  /* Shimmer overlay on hover */
+  .diff-card::before {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
-    border-radius: 50px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 55%);
+    border-radius: 18px; opacity: 0; transition: opacity 0.28s;
   }
-  .start-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 36px rgba(50,80,200,0.65), inset 0 1px 0 rgba(255,255,255,0.15);
+  .diff-card:hover::before { opacity: 1; }
+
+  /* Icon */
+  .diff-icon {
+    font-size: 38px; margin-bottom: 10px;
+    transition: transform 0.30s cubic-bezier(.34,1.56,.64,1);
+    position: relative; z-index: 1;
   }
-  .start-btn:active { transform: translateY(0); }
+  .diff-card:hover .diff-icon { transform: scale(1.20) rotate(-5deg); }
+
+  /* Difficulty pill badge */
+  .diff-badge {
+    font-size: 9px; font-weight: 800; letter-spacing: 2.5px;
+    text-transform: uppercase; padding: 3px 11px;
+    border-radius: 20px; margin-bottom: 9px;
+    position: relative; z-index: 1;
+  }
+  .easy .diff-badge {
+    background: rgba(80,220,120,0.14);
+    color: rgba(100,255,140,0.92);
+    border: 1px solid rgba(80,220,120,0.32);
+  }
+  .hard .diff-badge {
+    background: rgba(255,90,90,0.14);
+    color: rgba(255,130,130,0.96);
+    border: 1px solid rgba(255,90,90,0.32);
+  }
+
+  /* Card title */
+  .diff-title {
+    font-size: 21px; font-weight: 900; margin-bottom: 12px;
+    letter-spacing: 1px; position: relative; z-index: 1;
+  }
+  .easy .diff-title { color: rgba(120,255,155,0.95); }
+  .hard .diff-title { color: rgba(255,145,145,0.95); }
+
+  /* Bullet list */
+  .diff-bullets {
+    list-style: none; width: 100%;
+    display: flex; flex-direction: column; gap: 6px;
+    position: relative; z-index: 1;
+  }
+  .diff-bullets li {
+    font-size: 11px; font-weight: 700;
+    color: rgba(255,255,255,0.42);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .diff-bullets li::before {
+    content: ''; width: 5px; height: 5px;
+    border-radius: 50%; flex-shrink: 0;
+  }
+  .easy .diff-bullets li::before { background: rgba(80,220,120,0.75); }
+  .hard .diff-bullets li::before { background: rgba(255,90,90,0.75); }
+
+  /* Medium card — amber/gold theme */
+  .diff-card.medium {
+    background: rgba(54,40,10,0.70);
+    border-color: rgba(255,195,40,0.22);
+    box-shadow: 0 4px 24px rgba(255,195,40,0.07);
+  }
+  .diff-card.medium:hover, .diff-card.medium:focus-visible {
+    transform: translateY(-6px) scale(1.03);
+    border-color: rgba(255,195,40,0.70);
+    box-shadow: 0 14px 44px rgba(255,195,40,0.30),
+                0 0 0 1px rgba(255,195,40,0.18),
+                inset 0 1px 0 rgba(255,195,40,0.12);
+  }
+  .medium .diff-badge {
+    background: rgba(255,195,40,0.14);
+    color: rgba(255,220,80,0.96);
+    border: 1px solid rgba(255,195,40,0.32);
+  }
+  .medium .diff-title { color: rgba(255,215,90,0.95); }
+  .medium .diff-bullets li::before { background: rgba(255,195,40,0.80); }
+
+  /* Pulse on click (JS adds .selected) */
+  .diff-card.selected { animation: cardPulse 0.45s ease; }
+  @keyframes cardPulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.07); }
+    70%  { transform: scale(0.97); }
+    100% { transform: scale(1); }
+  }
 </style>
 </head>
 <body>
@@ -125,7 +228,7 @@
 
   <div id="home-inner">
 
-    <!-- Logo -->
+    <!-- Logo SVG -->
     <svg class="logo-hex" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
       <polygon points="45,4 82,24 82,66 45,86 8,66 8,24"
         fill="url(#hexgrad)" stroke="rgba(140,160,255,0.6)" stroke-width="2"/>
@@ -174,17 +277,63 @@
       </div>
     </div>
 
-    <!-- Difficulty indicator -->
-    <div class="difficulty-badge">
-      <div class="dot-red"></div>
-      <span>Expert difficulty</span>
+    <!-- ══ Difficulty selector ══ -->
+    <div class="choose-label">Choose your difficulty</div>
+
+    <div class="diff-row">
+
+      <!-- EASY card — sends difficulty=1 to the backend (shallow depth + simple eval) -->
+      <a id="card-easy" class="diff-card easy" href="/game/?difficulty=1" tabindex="0">
+        <div class="diff-icon">🌱</div>
+        <div class="diff-badge">Easy</div>
+        <div class="diff-title">Beginner</div>
+        <ul class="diff-bullets">
+          <li>14 marbles per side</li>
+          <li>Push 6 opponent marbles off the board to win</li>
+          <li>Move up to 3 marbles at once</li>
+          <li>Only 1 marble removed per push</li>
+        </ul>
+      </a>
+
+      <!-- MEDIUM card — sends difficulty=2 to the backend (King Mode) -->
+      <a id="card-medium" class="diff-card medium" href="/game/?difficulty=2" tabindex="0">
+        <div class="diff-icon">⚔️</div>
+        <div class="diff-badge">Medium</div>
+        <div class="diff-title">King Mode</div>
+        <ul class="diff-bullets">
+          <li>6 marbles + 1 King per side</li>
+          <li>Push the enemy King off the board to win</li>
+          <li>Normal marbles do not count toward the win</li>
+          <li>Protect your King at all costs!</li>
+        </ul>
+      </a>
+
+      <!-- HARD card — sends difficulty=3 to the backend (deep search + advanced eval) -->
+      <a id="card-hard" class="diff-card hard" href="/game/?difficulty=3" tabindex="0">
+        <div class="diff-icon">🔥</div>
+        <div class="diff-badge">Hard</div>
+        <div class="diff-title">Expert</div>
+        <ul class="diff-bullets">
+          <li>14 marbles + 1 King per side</li>
+          <li>Push 6 marbles off <em>or</em> eliminate the King to win</li>
+          <li>Dual win condition — stay alert!</li>
+          <li>One marble removed per push</li>
+        </ul>
+      </a>
+
     </div>
 
-    <a class="start-btn" href="/game/">▶ &nbsp; Play Now</a>
-
-  </div>
-</div>
+  </div><!-- /#home-inner -->
+</div><!-- /#home -->
 
 <script src="{% static 'home.js' %}"></script>
+<script>
+  // Pulse animation on click before navigating
+  document.querySelectorAll('.diff-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      card.classList.add('selected');
+    });
+  });
+</script>
 </body>
 </html>

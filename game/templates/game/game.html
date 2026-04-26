@@ -96,6 +96,24 @@
   /* ── canvas ── */
   canvas { display:block; cursor:pointer; border-radius:4px; }
 
+  /* Board label improvements */
+  #game canvas {
+    /* No effect here, but for clarity */
+  }
+  .abalone-label {
+    font-size: 20px !important;
+    font-weight: 900 !important;
+    color: #fff !important;
+    text-shadow: 0 2px 8px #222, 0 0 2px #000;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    pointer-events: none;
+    user-select: none;
+  }
+
   /* ── score bar ── */
   .score-bar {
     display:flex; align-items:stretch;
@@ -268,7 +286,7 @@
     <div class="top-bar">
       <a class="back-btn" href="/">← Home</a>
       <div class="top-bar-right">
-        <div class="level-badge">Expert</div>
+        <div class="level-badge" id="level-badge">Expert</div>
         <button id="mute-btn" onclick="toggleMute()" title="Toggle sound">🔊</button>
       </div>
     </div>
@@ -278,7 +296,7 @@
       <div class="avatar">🤖</div>
       <div class="player-info">
         <div class="name">AI Opponent</div>
-        <div class="sub" style="color:rgba(255,180,100,0.7)">Black marbles · Expert</div>
+        <div class="sub" id="ai-sub" style="color:rgba(255,180,100,0.7)">Black marbles &middot; Expert</div>
       </div>
     </div>
 

@@ -1,4 +1,4 @@
-# game_engine.py
+
 import time
 import random
 from copy import deepcopy
@@ -6,22 +6,32 @@ from copy import deepcopy
 EMPTY = "."
 WHITE = "W"
 BLACK = "B"
+WHITE_KING = "WK"   
+BLACK_KING = "BK"   
 
 
 class GameEngine:
     DIRECTIONS = [
-        (1, 0), #Right
-        (-1, 0), #Left
-        (0, 1), #Down-Right
-        (0, -1), #Up-Left
-        (1, -1), #Down-Left
-        (-1, 1), #Up-Right
+        (1, 0),
+        (-1, 0),
+        (0, 1),
+        (0, -1),
+        (1, -1),
+        (-1, 1),
     ]
 
-    def __init__(self):
-        self.board = self.initialize_board()
+    def __init__(self, mode="standard"):
+        self.mode = mode
+        if mode == "king":
+            self.board = self.initialize_board_medium()
+        elif mode == "hard":
+            self.board = self.initialize_board_hard()
+        else:
+            self.board = self.initialize_board()
         self.white_out = 0
         self.black_out = 0
+        self.white_king_out = False
+        self.black_king_out = False
         self.current_player = WHITE
 
     # =========================
@@ -57,6 +67,26 @@ class GameEngine:
 
         return board
 
+    def initialize_board_hard(self):
+        board = self.initialize_board()
+        if (0, -2) in board: board[(0, -2)] = WHITE_KING
+        if (0,  2) in board: board[(0,  2)] = BLACK_KING
+        return board
+
+    def initialize_board_medium(self):
+        board = {}
+        for q in range(-4, 5):
+            for r in range(-4, 5):
+                if -4 <= q + r <= 4:
+                    board[(q, r)] = EMPTY
+        for c in [(0,-4),(1,-4),(2,-4),(-1,-3),(0,-3),(1,-3)]:
+            if c in board: board[c] = WHITE
+        for c in [(-2,4),(-1,4),(0,4),(-1,3),(0,3),(1,3)]:
+            if c in board: board[c] = BLACK
+        if (0,-2) in board: board[(0,-2)] = WHITE_KING
+        if (0, 2) in board: board[(0, 2)] = BLACK_KING
+        return board
+
     # =========================
     # 2. Serialization
     # =========================
@@ -68,18 +98,23 @@ class GameEngine:
             "board": {f"{q},{r}": value for (q, r), value in self.board.items()},
             "white_out": self.white_out,
             "black_out": self.black_out,
+            "white_king_out": self.white_king_out,
+            "black_king_out": self.black_king_out,
+            "mode": self.mode,
             "current_player": self.current_player,
         }
 
     @classmethod
     def load_state(cls, data):
-        engine = cls()
+        engine = cls(mode=data.get("mode", "standard"))
         engine.board = {
             tuple(map(int, coord.split(","))): value
             for coord, value in data["board"].items()
         }
         engine.white_out = data["white_out"]
         engine.black_out = data["black_out"]
+        engine.white_king_out = data.get("white_king_out", False)
+        engine.black_king_out = data.get("black_king_out", False)
         engine.current_player = data["current_player"]
         return engine
 
@@ -107,8 +142,12 @@ class GameEngine:
             return delta
         return None
 
+    def _belongs_to(self, piece, player):
+        if player == WHITE: return piece in (WHITE, WHITE_KING)
+        return piece in (BLACK, BLACK_KING)
+
     def is_same_player(self, coord, player):
-        return self.in_bounds(coord) and self.get_piece(coord) == player
+        return self.in_bounds(coord) and self._belongs_to(self.get_piece(coord), player)
 
     def get_group_axis(self, group):
         if len(group) < 2:
@@ -171,7 +210,7 @@ class GameEngine:
         next_piece = self.get_piece(next_coord)
         if next_piece == EMPTY:
             return True
-        if next_piece == player:
+        if self._belongs_to(next_piece, player):
             return False
         opponents = self.get_line_from(head, direction)
         if len(opponents) > 3 or len(opponents) >= len(group):
@@ -213,20 +252,30 @@ class GameEngine:
                 for coord in reversed(opponents):
                     self.set_piece(self.add(coord, direction), self.get_piece(coord))
             else:
-                removed = len(opponents)
-                for coord in opponents:
-                    self.set_piece(coord, EMPTY)
+                last = opponents[-1]
+                last_piece = self.get_piece(last)
+                if last_piece == WHITE_KING: self.white_king_out = True
+                elif last_piece == BLACK_KING: self.black_king_out = True
+                self.set_piece(last, EMPTY)
+
                 if player == WHITE:
-                    self.black_out += removed
+                    self.black_out += 1
                 else:
-                    self.white_out += removed
-        for coord in sorted(
+                    self.white_out += 1
+
+                remaining = opponents[:-1]
+                for coord in reversed(remaining):
+                    self.set_piece(self.add(coord, direction), self.get_piece(coord))
+                    self.set_piece(coord, EMPTY)
+        sorted_grp = sorted(
             group,
             key=lambda c: c[0] * direction[0] + c[1] * direction[1],
             reverse=True
-        ):
+        )
+        piece_map = {c: self.get_piece(c) for c in sorted_grp}
+        for coord in sorted_grp:
             self.set_piece(coord, EMPTY)
-            self.set_piece(self.add(coord, direction), player)
+            self.set_piece(self.add(coord, direction), piece_map[coord])
 
     # =========================
     # 6. Move Generation
@@ -235,15 +284,15 @@ class GameEngine:
         player = player or self.current_player
         groups = set()
         for coord, piece in self.board.items():
-            if piece != player:
+            if not self._belongs_to(piece, player):
                 continue
             groups.add((coord,))
             for direction in self.DIRECTIONS:
                 second = self.add(coord, direction)
-                if self.get_piece(second) == player:
+                if self._belongs_to(self.get_piece(second), player):
                     groups.add(tuple(sorted((coord, second))))
                     third = self.add(second, direction)
-                    if self.get_piece(third) == player:
+                    if self._belongs_to(self.get_piece(third), player):
                         groups.add(tuple(sorted((coord, second, third))))
         return [tuple(group) for group in groups]
 
@@ -260,6 +309,22 @@ class GameEngine:
     # 7. Game Over / Winner
     # =========================
     def is_game_over(self):
+        if self.mode == "king":
+            return (
+                self.white_king_out
+                or self.black_king_out
+                or not bool(self.get_valid_moves(self.current_player))
+            )
+
+        if self.mode == "hard":
+            return (
+                self.white_out >= 6
+                or self.black_out >= 6
+                or self.white_king_out
+                or self.black_king_out
+                or not bool(self.get_valid_moves(self.current_player))
+            )
+
         return (
             self.white_out >= 6
             or self.black_out >= 6
@@ -267,10 +332,18 @@ class GameEngine:
         )
 
     def get_winner(self):
-        if self.white_out >= 6:
-            return BLACK
-        if self.black_out >= 6:
-            return WHITE
+        if self.mode == "king":
+            if self.white_king_out: return BLACK
+            if self.black_king_out: return WHITE
+            return None
+
+        if self.mode == "hard":
+            if self.white_out >= 6 or self.white_king_out: return BLACK
+            if self.black_out >= 6 or self.black_king_out: return WHITE
+            return None
+
+        if self.white_out >= 6: return BLACK
+        if self.black_out >= 6: return WHITE
         return None
 
     def switch_player(self):
@@ -315,13 +388,17 @@ class GameEngine:
             frozenset((k, v) for k, v in self.board.items() if v != EMPTY),
             self.white_out,
             self.black_out,
+            self.white_king_out,
+            self.black_king_out,
             self.current_player,
         )
 
-    # ── Apply / Undo (replaces deepcopy) ──────────────────────
+
     def _make_move(self, group, direction):
-        old_wo     = self.white_out
-        old_bo     = self.black_out
+        old_wo  = self.white_out
+        old_bo  = self.black_out
+        old_wko = self.white_king_out
+        old_bko = self.black_king_out
         old_player = self.current_player
 
         player   = self.current_player
@@ -345,17 +422,19 @@ class GameEngine:
 
         self.apply_group_move(group, direction, switch=True)
 
-        return (changed, old_wo, old_bo, old_player)
+        return (changed, old_wo, old_bo, old_wko, old_bko, old_player)
 
     def _undo_move(self, undo_record):
-        changed, old_wo, old_bo, old_player = undo_record
+        changed, old_wo, old_bo, old_wko, old_bko, old_player = undo_record
         for coord, value in changed:
             self.board[coord] = value
-        self.white_out     = old_wo
-        self.black_out     = old_bo
+        self.white_out      = old_wo
+        self.black_out      = old_bo
+        self.white_king_out = old_wko
+        self.black_king_out = old_bko
         self.current_player = old_player
 
-    # ── Core evaluation ───────────────────────────────────────
+
     def evaluate_board(self, player=None):
         player   = player or self.current_player
         opponent = BLACK if player == WHITE else WHITE
@@ -397,6 +476,56 @@ class GameEngine:
 
         return score
 
+    def evaluate_board_easy(self, player=None):
+        player   = player or self.current_player
+        my_caps  = self.black_out if player == BLACK else self.white_out
+        opp_caps = self.white_out if player == BLACK else self.black_out
+        score = (my_caps - opp_caps) * self._CAPTURE_W
+        score += random.randint(-800, 800)
+        return score
+
+    def evaluate_board_medium(self, player=None):
+        player      = player or self.current_player
+        player_king = WHITE_KING if player == WHITE else BLACK_KING
+        opp_king    = BLACK_KING if player == WHITE else WHITE_KING
+
+        if self.white_king_out:
+            return -1_000_000 if player == WHITE else 1_000_000
+        if self.black_king_out:
+            return  1_000_000 if player == WHITE else -1_000_000
+
+        my_king_pos = opp_king_pos = None
+        for coord, piece in self.board.items():
+            if piece == player_king: my_king_pos  = coord
+            elif piece == opp_king:  opp_king_pos = coord
+
+        score = 0
+
+        if my_king_pos:
+            score -= self._hex_dist(my_king_pos) * 600
+
+        if opp_king_pos:
+            score += self._hex_dist(opp_king_pos) * 700
+
+        if opp_king_pos:
+            oq, orr = opp_king_pos
+            for coord, piece in self.board.items():
+                if piece == EMPTY or not self._belongs_to(piece, player):
+                    continue
+                d = max(abs(coord[0]-oq), abs(coord[1]-orr),
+                        abs((-coord[0]-coord[1])-(-oq-orr)))
+                if d <= 3:
+                    score += 150 // max(d, 1)
+
+        for coord, piece in self.board.items():
+            if piece == EMPTY: continue
+            d = self._hex_dist(coord)
+            if self._belongs_to(piece, player): score += (4 - d) * 30
+            else:                               score -= (4 - d) * 30
+
+        score += random.randint(-200, 200)
+        return score
+
     def _edge_kill_bonus(self, move):
         group, direction = move
         player = self.current_player
@@ -418,7 +547,7 @@ class GameEngine:
             dist = max(abs(c[0]), abs(c[1]), abs(-c[0]-c[1]))
 
             if dist == 4:
-                score += 200_000   
+                score += 200_000
             elif dist == 3:
                 score += 80_000
 
@@ -429,7 +558,7 @@ class GameEngine:
                     empty_neighbors += 1
 
             if empty_neighbors <= 2:
-                score += 100_000 
+                score += 100_000
 
         return score
     def _attack_score(self, attacker, defender):
@@ -466,7 +595,7 @@ class GameEngine:
                     score += self._COHESION_W
         return score
 
-    # ── Move ordering ─────────────────────────────────────────
+
     def _move_priority(self, move):
         group, direction = move
         player   = self.current_player
@@ -503,60 +632,73 @@ class GameEngine:
         edge_bonus = self._edge_kill_bonus(move)
         return push_score + edge_bonus + size_bonus + center_bonus + inline_bonus
 
-    def get_ai_move(self, difficulty="medium"):
+    def get_ai_move(self, difficulty="hard"):
         import time
 
         valid_moves = self.get_valid_moves(self.current_player)
         if not valid_moves:
             return None
-        for move in valid_moves:
-            group, direction = move
-            player = self.current_player
-            opponent = BLACK if player == WHITE else WHITE
 
-            axis = self.get_group_axis(group)
-            inline = (axis is None
-                    or direction == axis
-                    or direction == self.opposite_direction(axis))
+        if difficulty == "hard":
+            for move in valid_moves:
+                group, direction = move
+                player   = self.current_player
+                opponent = BLACK if player == WHITE else WHITE
+                axis   = self.get_group_axis(group)
+                inline = (axis is None
+                        or direction == axis
+                        or direction == self.opposite_direction(axis))
+                if not inline or len(group) < 2:
+                    continue
+                head      = self.get_group_head(group, direction)
+                next_cell = self.add(head, direction)
+                if self.get_piece(next_cell) != opponent:
+                    continue
+                opp_line = self.get_line_from(head, direction)
+                if not opp_line:
+                    continue
+                after = self.add(opp_line[-1], direction)
+                if after not in self.board:
+                    return move
 
-            if not inline or len(group) < 2:
-                continue
+            time_limit = 1.5
+            max_depth  = 4
+            branch_cap = 18
+            eval_fn    = self.evaluate_board
 
-            head = self.get_group_head(group, direction)
-            next_cell = self.add(head, direction)
+        elif difficulty == "easy":
+            time_limit = 0.4
+            max_depth  = 2
+            branch_cap = 8
+            eval_fn    = self.evaluate_board_easy
 
-            if self.get_piece(next_cell) != opponent:
-                continue
+        elif difficulty == "medium":
+            time_limit = 0.8
+            max_depth  = 3
+            branch_cap = 14
+            eval_fn    = self.evaluate_board_medium
 
-            opp_line = self.get_line_from(head, direction)
-            if not opp_line:
-                continue
-
-            after = self.add(opp_line[-1], direction)
-
-            if after not in self.board:
-                return move
-
-        time_limit = 0.8 if difficulty == "medium" else 1.5
-        max_depth  = 2   if difficulty == "medium" else 4
-        branch_cap = 14  if difficulty == "medium" else 18
-
-        ordered = sorted(valid_moves, key=self._move_priority, reverse=True)
+        if difficulty == "hard":
+            ordered = sorted(valid_moves, key=self._move_priority, reverse=True)
+        else:
+            ordered = list(valid_moves)
+            random.shuffle(ordered)
         ordered = ordered[:branch_cap]
 
         best_move  = ordered[0]
         deadline   = time.time() + time_limit
-        tt         = {}         
+        tt         = {}
 
         for depth in range(1, max_depth + 1):
             if time.time() >= deadline:
                 break
 
-            iter_best_score = float("-inf")
-            iter_best_move  = best_move
-            alpha           = float("-inf")
-            beta            = float("inf")
-            opponent        = BLACK if self.current_player == WHITE else WHITE
+            iter_best_score  = float("-inf")
+            iter_best_move   = best_move
+            iter_move_scores = []
+            alpha            = float("-inf")
+            beta             = float("inf")
+            opponent         = BLACK if self.current_player == WHITE else WHITE
 
             for move in ordered:
                 if time.time() >= deadline:
@@ -564,10 +706,11 @@ class GameEngine:
                 undo = self._make_move(move[0], move[1])
                 score = self._alphabeta(
                     depth - 1, opponent, alpha, beta, False,
-                    deadline, tt, branch_cap
+                    deadline, tt, branch_cap, eval_fn    # ← eval_fn passed here
                 )
                 self._undo_move(undo)
 
+                iter_move_scores.append((move, score))
                 if score > iter_best_score:
                     iter_best_score = score
                     iter_best_move  = move
@@ -576,24 +719,32 @@ class GameEngine:
                     break
 
             if time.time() < deadline or depth == 1:
-                best_move = iter_best_move
+                if difficulty in ("easy", "medium") and iter_move_scores:
+                    threshold   = 800 if difficulty == "medium" else 1500
+                    close_moves = [m for m, s in iter_move_scores
+                                   if s >= iter_best_score - threshold]
+                    best_move = random.choice(close_moves) if close_moves else iter_best_move
+                else:
+                    best_move = iter_best_move
 
-            if iter_best_move in ordered:
+            if difficulty == "hard" and iter_best_move in ordered:
                 ordered.remove(iter_best_move)
                 ordered.insert(0, iter_best_move)
 
         return best_move
 
     def _alphabeta(self, depth, player, alpha, beta, maximizing,
-        deadline, tt, branch_cap):
+                   deadline, tt, branch_cap, eval_fn=None):
+        if eval_fn is None:
+            eval_fn = self.evaluate_board
 
         if self.is_game_over():
-            return self.evaluate_board(player)
+            return eval_fn(player)
         if depth == 0:
-            return self.evaluate_board(player)
+            return eval_fn(player)
 
         if time.time() >= deadline:
-            return self.evaluate_board(player)
+            return eval_fn(player)
 
         key = self._board_hash()
         if key in tt:
@@ -603,7 +754,7 @@ class GameEngine:
 
         valid_moves = self.get_valid_moves(player)
         if not valid_moves:
-            return self.evaluate_board(player)
+            return eval_fn(player)
 
         if depth >= 2:
             ordered = sorted(valid_moves, key=self._move_priority, reverse=True)
@@ -620,7 +771,7 @@ class GameEngine:
                 value = max(
                     value,
                     self._alphabeta(depth - 1, opponent, alpha, beta, False,
-                                    deadline, tt, branch_cap)
+                                    deadline, tt, branch_cap, eval_fn)
                 )
                 self._undo_move(undo)
                 alpha = max(alpha, value)
@@ -633,7 +784,7 @@ class GameEngine:
                 value = min(
                     value,
                     self._alphabeta(depth - 1, opponent, alpha, beta, True,
-                                    deadline, tt, branch_cap)
+                                    deadline, tt, branch_cap, eval_fn)
                 )
                 self._undo_move(undo)
                 beta = min(beta, value)
