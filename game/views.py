@@ -10,9 +10,6 @@ from .game_engine import GameEngine
 # ── Difficulty mapping ────────────────────────────────────────
 DIFFICULTY_MAP = {1: "easy", 2: "medium", 3: "hard"}
 
-# ── Coordinate conversion constants ──────────────────────────
-# Frontend row = r + 4,  col = q - Q_MIN[r]
-# Q_MIN maps axial r (-4..+4) to the minimum q value in that row.
 _Q_MIN = {
         -4:  0, -3: -1, -2: -2, -1: -3,
         0: -4,
@@ -24,23 +21,17 @@ _ROW_COUNTS = [5, 6, 7, 8, 9, 8, 7, 6, 5]
 # ── Coordinate helpers ────────────────────────────────────────
 
 def _frontend_to_backend(cell):
-    """Convert frontend {row, col} → backend axial (q, r)."""
     r = cell["row"] - 4
     q = cell["col"] + _Q_MIN[r]
     return (q, r)
 
 
 def _backend_to_frontend(coord):
-    """Convert backend axial (q, r) → frontend {row, col}."""
     q, r = coord
     return {"row": r + 4, "col": q - _Q_MIN[r]}
 
 
 def _serialize_for_frontend(engine):
-    """
-    Convert the backend board dict to a jagged 2-D list indexed as
-    board[frontend_row][frontend_col], plus captured counts and turn.
-    """
     board = [[""] * count for count in _ROW_COUNTS]
     for (q, r), value in engine.board.items():
         row = r + 4
@@ -58,10 +49,6 @@ def _serialize_for_frontend(engine):
 
 
 def _compute_direction(backend_group, backend_target, engine):
-    """
-    Derive the hex direction from a group of backend coords to a target.
-    First tries direct adjacency; falls back to nearest-valid-direction.
-    """
     directions = engine.DIRECTIONS
 
     for coord in backend_group:
@@ -89,7 +76,6 @@ def _compute_direction(backend_group, backend_target, engine):
 # ── Session helpers ───────────────────────────────────────────
 
 def _get_engine(request):
-    """Load the game engine from the session, or return None."""
     state = request.session.get("game_state")
     return GameEngine.load_state(state) if state else None
 
@@ -125,11 +111,9 @@ def start_game(request):
     if request.session.get("difficulty") == "medium":
         engine = GameEngine(mode="king")
     elif request.session.get("difficulty") == "hard":
-        # ===== MODIFICATION: FINAL LEVEL WIN CONDITION ONLY =====
-        # mode="hard" activates dual win: 6 marbles OR king elimination
         engine = GameEngine(mode="hard")
     else:
-        engine = GameEngine()   # easy / standard: 6-marble rule only
+        engine = GameEngine()   
     _save_engine(request, engine)
     return JsonResponse({"status": "started", **_serialize_for_frontend(engine)})
 

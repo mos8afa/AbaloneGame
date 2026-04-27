@@ -616,6 +616,13 @@ class GameEngine:
                     push_score = 10_000_000
                 else:
                     push_score = 500_000
+                    
+#  Kill move 
+#  Push 
+#  Edge / kill potential
+#  Group size (3 > 2)
+#  Center moves
+#  باقي الحركات
 
         size_bonus = (50_000 if len(group) == 3 else 10_000) if inline else 0
 

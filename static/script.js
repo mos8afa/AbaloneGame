@@ -1,9 +1,3 @@
-// ============================================================
-// ABALONE — FRONTEND
-// Pure view layer. All game logic lives in the Django backend.
-// Backend coordinates are NEVER modified here — flip is render-only.
-// ============================================================
-
 // ══════════════════════════════════════════════════════════════
 // 1. CANVAS
 // ══════════════════════════════════════════════════════════════
@@ -27,14 +21,6 @@ const ANIM_MS = 200;  // marble animation duration (ms)
 
 // ══════════════════════════════════════════════════════════════
 // 2. BOARD FLIP
-//
-//  Backend row 0 = White / player (visual BOTTOM after flip)
-//  Backend row 8 = Black / AI     (visual TOP    after flip)
-//  displayRow = 8 - backendRow
-//
-//  cellPos() is the ONLY place the flip is applied.
-//  Click detection uses the same function, so it is automatically
-//  correct. The backend never sees the flip.
 // ══════════════════════════════════════════════════════════════
 function cellPos(row, col) {
   const displayRow = 8 - row;
@@ -47,15 +33,6 @@ function cellPos(row, col) {
 
 // ══════════════════════════════════════════════════════════════
 // 3. UNIFIED COORDINATE DISPLAY LAYER
-//
-//  Single source of truth: backend {row,col} → display label.
-//
-//  backend row 0 → 'a' (visual bottom — player side)
-//  backend row 8 → 'i' (visual top   — AI side)
-//  Formula: letter = chr('a' + backendRow)
-//
-//  Notation: "<col><letter>"  e.g. "3e", "1i", "5a"
-//  Used by: drawLabels(), addHistory(), move history panel.
 // ══════════════════════════════════════════════════════════════
 const ORD_A = "a".charCodeAt(0);
 
@@ -69,9 +46,6 @@ function cellsLabel(cells) {
 
 // ══════════════════════════════════════════════════════════════
 // 4. HEX COORDINATE HELPERS
-//
-//  Used only for client-side hint-cell computation.
-//  Frontend row = r + 4,  col = q − Q_MIN[r]
 // ══════════════════════════════════════════════════════════════
 const Q_MIN_MAP = {
   "-4": 0, "-3": -1, "-2": -2, "-1": -3,
@@ -187,11 +161,7 @@ let moveHistory = [];
 let hoverCell = null;
 
 // ── Difficulty selection ──────────────────────────────────────
-// Read from URL: /game/?difficulty=1  (1=easy, 2=medium, 3=hard)
-// Default to 3 (hard) when not specified.
-//
-// ===== WHERE EASY IS CALLED  → difficulty=1 → backend "easy" =====
-// ===== WHERE HARD IS CALLED  → difficulty=3 → backend "hard" =====
+
 const _urlParams        = new URLSearchParams(window.location.search);
 const selectedDifficulty = parseInt(_urlParams.get("difficulty") || "3", 10);
 
@@ -207,16 +177,12 @@ const AI_SUB_LABELS = {
   3: "Black marbles · Expert",
 };
 
-// Animation queue: [{row,col,fromX,fromY,toX,toY,piece,t}]
 let animQueue = [];
 
-// Hint cells: Set of "row,col" keys for O(1) lookup in drawCells
 let hintSet = new Set();
 
-// Anim set: Set of "row,col" keys — cells currently animating (skip static draw)
 let animSet = new Set();
 
-// Invalid-move flash timestamp
 let invalidFlashUntil = 0;
 
 // ══════════════════════════════════════════════════════════════
@@ -236,6 +202,7 @@ function computeHintCells() {
     });
   });
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // 9. RENDERING
@@ -261,7 +228,6 @@ const STRIP_SHADOW = "rgba(0,0,0,0.70)";
 function render() {
   ctx.clearRect(0, 0, BOARD_W, BOARD_H);
   _drawBoardBackground();
-  // drawLabels(); // Board labels removed
   _drawCells();
   _drawAnimatingMarbles();
 }
@@ -276,12 +242,6 @@ function _drawBoardBackground() {
   ctx.fill();
 }
 
-// ── Label border strips ───────────────────────────────────────
-// Three polygon strips hug the board's hex staircase:
-//   LEFT   — row labels i (top) → a (bottom)
-//   BOTTOM — column labels 1–5
-//   RIGHT  — column labels 6–9
-// drawLabels removed: board labels are no longer rendered
 
 // ── Cells + marbles ───────────────────────────────────────────
 function _drawCells() {
@@ -334,7 +294,7 @@ function _drawCells() {
         ctx.fill();
       }
 
-      // marble — skip if animating (drawn separately)
+      // marble 
       if (piece && piece !== "" && !animSet.has(key)) {
         _drawMarble(x, y, piece);
       }
@@ -723,8 +683,6 @@ async function startGame() {
   setHint("Starting game…");
 
   // ── Apply difficulty labels to UI ────────────────────────────
-  // ===== EASY is called when selectedDifficulty === 1 =====
-  // ===== HARD is called when selectedDifficulty === 3 =====
   const label = DIFFICULTY_LABELS[selectedDifficulty] || "Expert";
   const color = DIFFICULTY_COLORS[selectedDifficulty] || DIFFICULTY_COLORS[3];
   const badge = document.getElementById("level-badge");
