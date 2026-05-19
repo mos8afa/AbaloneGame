@@ -369,6 +369,7 @@ class GameEngine:
             for r in range(-4, 5):
                 if -4 <= q + r <= 4:
                     cls._DIST_CACHE[(q, r)] = max(abs(q), abs(r), abs(-q - r))
+    
     @staticmethod
     def _hex_dist(coord):
         return GameEngine._DIST_CACHE.get(
@@ -561,6 +562,7 @@ class GameEngine:
                 score += 100_000
 
         return score
+    
     def _attack_score(self, attacker, defender):
         score = 0
         board = self.board
@@ -617,13 +619,6 @@ class GameEngine:
                 else:
                     push_score = 500_000
                     
-#  Kill move 
-#  Push 
-#  Edge / kill potential
-#  Group size (3 > 2)
-#  Center moves
-#  باقي الحركات
-
         size_bonus = (50_000 if len(group) == 3 else 10_000) if inline else 0
 
         dist_c = self._DIST_CACHE
